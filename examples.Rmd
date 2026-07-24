@@ -17,13 +17,14 @@ library('tidyr')
 library('knitr')
 library('gt')
 library('scales')
+library('lubridate')
 
 ## get support functions
 source('support_functions.R')
 
 ## load data from N=1000 APS cohort
 ## provides "data", "dictionary" and "codebook" in the working environment
-load('20251213_data.RData')
+load('20260723_data.RData')
 ```
 
 # Contributors
@@ -384,9 +385,9 @@ data_sofa <- data %>%
   ## Renal
   ## calculate chronic or new RRT status
   mutate(
-    rrt_stdat = as.Date(rrt_stdat),
-    rrt_endat = as.Date(rrt_endat),
-    enrollment_date = as.Date(enrollment_time)) %>%
+    rrt_stdat = date(rrt_stdat),
+    rrt_endat = date(rrt_endat),
+    enrollment_date = date(enrollment_time)) %>%
   mutate(chronic_or_new_rrt = case_when(
     grepl("Chronic kidney replacement therapy", sofa_base_renal_chronic) ~ TRUE,
     (study_day >= as.numeric(rrt_stdat - enrollment_date)) &
@@ -419,9 +420,9 @@ data_sofa <- data %>%
     by='record_id') %>%
   
   ## calculate study days for death and ICU admission dates
-  mutate(death_day = as.numeric(difftime(as.Date(dthdat), as.Date(enrollment_time), units='days'))) %>%
-  mutate(icu_start_day= as.numeric(difftime(as.Date(icu_stdat), as.Date(enrollment_time), units='days'))) %>%
-  mutate(icu_end_day= as.numeric(difftime(as.Date(icu_endat), as.Date(enrollment_time), units='days'))) %>%
+  mutate(death_day = as.numeric(difftime(date(dthdat), date(enrollment_time), units='days'))) %>%
+  mutate(icu_start_day= as.numeric(difftime(date(icu_stdat), date(enrollment_time), units='days'))) %>%
+  mutate(icu_end_day= as.numeric(difftime(date(icu_endat), date(enrollment_time), units='days'))) %>%
   
   ## calculate whether all SOFA components are missing
   # mutate(sofa_all_na = if_all(all_of(
@@ -430,25 +431,25 @@ data_sofa <- data %>%
     paste0('sofa_2_', c('resp','coag','livr','card','cns','rena'))), is.na)) %>%
 
   ## calculate study date for each study day
-  mutate(study_date = as.difftime(study_day, units='days') + as.Date(enrollment_time)) %>%
+  mutate(study_date = as.difftime(study_day, units='days') + date(enrollment_time)) %>%
   
   ## calculate reasons that SOFA-2 scores should be unmeasured
   mutate(sofa_2_unmeasured_reason = case_when(
     
     ## intercurrent event on prior days
-    study_date < as.Date(ds_arrival_date) ~ "Pre-hospital",
-    !is.na(dthdat) & study_date > as.Date(dthdat) ~ "Deceased",
-    !is.na(disdat) & study_date > as.Date(disdat) ~ "Discharged",
-    !is.na(dsstdat) & study_date > as.Date(dsstdat) &
+    study_date < date(ds_arrival_date) ~ "Pre-hospital",
+    !is.na(dthdat) & study_date > date(dthdat) ~ "Deceased",
+    !is.na(disdat) & study_date > date(disdat) ~ "Discharged",
+    !is.na(dsstdat) & study_date > date(dsstdat) &
       grepl('Withdrawn|Lost|No further', dsdecod) ~ dsdecod,
     
     #dailysofa_perf == 'Not Available' ~ "Marked not available",
     
     ## all SOFA-2 scores missing and intercurrent event same day
-    sofa_2_all_na & study_date == as.Date(ds_arrival_date) ~ "Pre-hospital",
-    sofa_2_all_na & !is.na(dthdat) & study_date == as.Date(dthdat) ~ "Deceased",
-    sofa_2_all_na & !is.na(disdat) & study_date == as.Date(disdat) ~ "Discharged",
-    sofa_2_all_na & !is.na(dsstdat) & study_date == as.Date(dsstdat) &
+    sofa_2_all_na & study_date == date(ds_arrival_date) ~ "Pre-hospital",
+    sofa_2_all_na & !is.na(dthdat) & study_date == date(dthdat) ~ "Deceased",
+    sofa_2_all_na & !is.na(disdat) & study_date == date(disdat) ~ "Discharged",
+    sofa_2_all_na & !is.na(dsstdat) & study_date == date(dsstdat) &
       grepl('Withdrawn|Lost|No further', dsdecod) ~ dsdecod,
     
     ## no clear reason SOFA-2 should be unmeasured
